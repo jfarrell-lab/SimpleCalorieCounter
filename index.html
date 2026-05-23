@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calorie Tracker</title>
+
+<style>
+body {
+    font-family: Arial;
+    padding: 20px;
+    background: #f5f5f5;
+}
+
+.container {
+    max-width: 420px;
+    margin: auto;
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+}
+
+/* Top */
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Buttons + input */
+input, button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    font-size: 16px;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+button {
+    background: #0078d4;
+    color: white;
+    border: none;
+    touch-action: manipulation;
+}
+
+input {
+    border: 1px solid #ccc;
+}
+
+/* Reset */
+.reset-btn {
+    background: red;
+    width: auto;
+    padding: 8px 12px;
+}
+
+/* Delete */
+.delete {
+    background: red;
+    width: auto;
+    margin-left: 10px;
+}
+
+/* List */
+li {
+    background: #eee;
+    padding: 8px;
+    margin-top: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Legend */
+.legend {
+    background: #fafafa;
+    padding: 10px;
+    margin-top: 10px;
+    font-size: 14px;
+    border-radius: 5px;
+}
+
+/* Reset message */
+#resetMsg {
+    color: red;
+    font-size: 12px;
+    height: 16px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="top-bar">
+        <h3>Daily Limit: <span id="dailyLimitDisplay"></span></h3>
+        <button id="resetBtn" type="button" class="reset-btn">Reset</button>
+    </div>
+
+    <div id="resetMsg"></div>
+
+    <h2>Remaining</h2>
+    <h1 id="remaining">0</h1>
+
+    <h3>Weekly Total</h3>
+    <h2 id="weeklyTotal">0</h2>
+
+    <div class="legend">
+        <strong>Meal Guide:</strong><br>
+        Breakfast: 05:00 – 11:59<br>
+        Dinner: 12:00 – 15:00<br>
+        Tea: 15:01 – 19:00<br>
+        Snack: All other times
+    </div>
+
+    <input type="number" id="calInput" placeholder="Enter calories" min="1" inputmode="numeric">
+
+    <button id="addBtn" type="button">Add Calories</button>
+
+    <h3>Food Log</h3>
+    <ul id="foodList"></ul>
+
+    <h3>This Week</h3>
+    <ul id="weekBreakdown"></ul>
+
+</div>
+
+<script>
+
+/*
+✅ CHANGE DAILY CALORIES HERE
+*/
+let dailyLimit = 1350;
+
+let caloriesUsed = 0;
+let resetArmed = false;
+
+/* Date */
+function getTodayKey() {
+    return new Date().toDateString();
+}
+
+function getWeekStart() {
+    let d = new Date();
+    let day = d.getDay();
+    let diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(d.setDate(diff));
+}
+
+/* Meal label */
+function getMealLabel() {
+    let now = new Date();
+    let mins = now.getHours() * 60 + now.getMinutes();
+
+    if (mins >= 300 && mins <= 719) return "Breakfast";
+    if (mins >= 720 && mins <= 900) return "Dinner";
+    if (mins >= 901 && mins <= 1140) return "Tea";
+    return "Snack";
+}
+
+/* Load */
+function loadData() {
+    let data = JSON.parse(localStorage.getItem("tracker")) || {};
+    let today = getTodayKey();
+
+    caloriesUsed = 0;
+    foodList.innerHTML = "";
+
+    if (data[today]) {
+        caloriesUsed = data[today].total;
+
+        data[today].items.forEach(item => {
+            addItemToList(item.amount, item.label);
+        });
+    }
+
+    updateDisplay();
+}
+
+/* Save */
+function saveData() {
+    let data = JSON.parse(localStorage.getItem("tracker")) || {};
+    let today = getTodayKey();
+
+    let items = [];
+    document.querySelectorAll("#foodList li").forEach(li => {
+        items.push({
+            amount: parseInt(li.dataset.amount),
+            label: li.dataset.label
+        });
+    });
+
+    data[today] = {
+        total: caloriesUsed,
+        items: items
+    };
+
+    localStorage.setItem("tracker", JSON.stringify(data));
+}
+
+/* Add */
+function addCalories() {
+    let amount = parseInt(calInput.value);
+
+    if (!amount || amount <= 0) {
+        alert("Enter a positive number");
+        return;
+    }
+
+    let label = getMealLabel();
+
+    caloriesUsed += amount;
+    addItemToList(amount, label);
+
+    calInput.value = "";
+    updateDisplay();
+    saveData();
+}
+
+/* Add item */
+function addItemToList(amount, label) {
+    let li = document.createElement("li");
+    li.dataset.amount = amount;
+    li.dataset.label = label;
+
+    let text = document.createElement("span");
+    text.innerText = `${label}: ${amount} kcal`;
+
+    let btn = document.createElement("button");
+    btn.innerText = "X";
+    btn.className = "delete";
+    btn.type = "button";
+
+    btn.addEventListener("click", () => {
+        caloriesUsed -= amount;
+        li.remove();
+        updateDisplay();
+        saveData();
+    });
+
+    li.appendChild(text);
+    li.appendChild(btn);
+
+    foodList.appendChild(li);
+}
+
+/* ✅ RESET (iPhone-safe double tap) */
+function resetDay() {
+    if (!resetArmed) {
+        resetMsg.innerText = "Tap reset again to confirm";
+        resetArmed = true;
+
+        setTimeout(() => {
+            resetArmed = false;
+            resetMsg.innerText = "";
+        }, 3000);
+
+        return;
+    }
+
+    let data = JSON.parse(localStorage.getItem("tracker")) || {};
+    let today = getTodayKey();
+
+    // ✅ remove full day properly
+    delete data[today];
+
+    localStorage.setItem("tracker", JSON.stringify(data));
+
+    caloriesUsed = 0;
+    foodList.innerHTML = "";
+
+    resetArmed = false;
+    resetMsg.innerText = "";
+
+    updateDisplay();
+}
+
+/* Weekly */
+function updateWeeklyDisplay() {
+    let data = JSON.parse(localStorage.getItem("tracker")) || {};
+    let start = getWeekStart();
+
+    let total = 0;
+    let list = [];
+
+    for (let i = 0; i < 7; i++) {
+        let d = new Date(start);
+        d.setDate(start.getDate() + i);
+
+        let key = d.toDateString();
+        let name = d.toLocaleDateString("en-GB", { weekday: "long" });
+
+        let val = data[key] ? data[key].total : 0;
+        total += val;
+
+        list.push(`<li>${name}: ${val} kcal</li>`);
+    }
+
+    weeklyTotal.innerText = total;
+    weekBreakdown.innerHTML = list.join("");
+}
+
+/* UI */
+function updateDisplay() {
+    remaining.innerText = dailyLimit - caloriesUsed;
+    dailyLimitDisplay.innerText = dailyLimit;
+    updateWeeklyDisplay();
+}
+
+/* Events */
+addBtn.addEventListener("click", addCalories);
+resetBtn.addEventListener("click", resetDay);
+
+/* Init */
+loadData();
+
+</script>
+
+</body>
+</html>
