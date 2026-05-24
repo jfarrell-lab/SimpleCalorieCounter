@@ -20,23 +20,29 @@ body {
     border-radius: 10px;
 }
 
+.main-title {
+    font-size: 30px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
 .top-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
-/* ✅ Bigger daily limit */
 #dailyLimitDisplay {
-    font-size: 22px;
+    font-size: 24px;
     font-weight: bold;
 }
 
 input, button {
     width: 100%;
-    padding: 12px;
+    padding: 14px;
     margin-top: 10px;
-    font-size: 16px;
+    font-size: 18px;
     border-radius: 5px;
     box-sizing: border-box;
 }
@@ -49,6 +55,11 @@ button {
 
 input {
     border: 1px solid #ccc;
+}
+
+#remaining {
+    font-size: 42px;
+    font-weight: bold;
 }
 
 .reset-btn {
@@ -65,8 +76,14 @@ input {
 
 li {
     background: #eee;
-    padding: 8px;
-    margin-top: 5px;
+    padding: 12px;
+    margin-top: 6px;
+    font-size: 18px;
+    display: flex;
+    flex-direction: column;
+}
+
+.item-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -76,14 +93,14 @@ li {
     background: #fafafa;
     padding: 10px;
     margin-top: 10px;
-    font-size: 14px;
+    font-size: 16px;
     border-radius: 5px;
 }
 
 #resetMsg {
     color: red;
-    font-size: 12px;
-    height: 16px;
+    font-size: 14px;
+    height: 20px;
 }
 </style>
 </head>
@@ -92,17 +109,17 @@ li {
 
 <div class="container">
 
+    <div class="main-title">Karen's Calorie Tracker</div>
+
     <div class="top-bar">
         <h3>Daily Limit: <span id="dailyLimitDisplay"></span></h3>
-        <button id="resetBtn" type="button" class="reset-btn">Reset</button>
+        <button id="resetBtn" class="reset-btn">Reset</button>
     </div>
 
     <div id="resetMsg"></div>
 
     <h2>Remaining</h2>
     <h1 id="remaining">0</h1>
-
-    <!-- ✅ Weekly removed -->
 
     <div class="legend">
         <strong>Meal Guide:</strong><br>
@@ -113,18 +130,14 @@ li {
     </div>
 
     <input type="number" id="calInput" placeholder="Enter calories" min="1">
+    <button id="addBtn">Add Calories</button>
 
-    <button id="addBtn" type="button">Add Calories</button>
-
-    <!-- ✅ LABEL UPDATED -->
     <h3>Today's Food Log</h3>
     <ul id="foodList"></ul>
 
-    <!-- ✅ MONTH SUMMARY -->
     <h3>This Month's Summary</h3>
     <ul id="monthBreakdown"></ul>
 
-    <!-- ✅ ARCHIVE -->
     <h3>This Month's Detailed</h3>
     <ul id="archiveList"></ul>
 
@@ -134,9 +147,10 @@ li {
 
 let dailyLimit = 1350;
 let caloriesUsed = 0;
-let resetArmed = false;
 
-/* Date helpers */
+let resetTapCount = 0;
+
+/* Date */
 function getTodayKey() {
     return new Date().toDateString();
 }
@@ -146,12 +160,11 @@ function getMonthKey() {
     return d.getFullYear() + "-" + d.getMonth();
 }
 
-/* ✅ AUTO RESETS */
+/* Reset check */
 function checkReset() {
     let today = getTodayKey();
     let lastDay = localStorage.getItem("lastDay");
 
-    // ✅ DAILY RESET (clear visible list ONLY, keep data)
     if (lastDay !== today) {
         caloriesUsed = 0;
         foodList.innerHTML = "";
@@ -161,14 +174,13 @@ function checkReset() {
     let currentMonth = getMonthKey();
     let lastMonth = localStorage.getItem("lastMonth");
 
-    // ✅ MONTH RESET (full wipe)
     if (lastMonth !== currentMonth) {
         localStorage.removeItem("tracker");
         localStorage.setItem("lastMonth", currentMonth);
     }
 }
 
-/* Meal label */
+/* Meal */
 function getMealLabel() {
     let now = new Date();
     let mins = now.getHours() * 60 + now.getMinutes();
@@ -222,7 +234,7 @@ function saveData() {
     localStorage.setItem("tracker", JSON.stringify(data));
 }
 
-/* ✅ ADD */
+/* Add */
 function addCalories() {
     let amount = parseInt(calInput.value);
     if (!amount || amount <= 0) return;
@@ -240,12 +252,14 @@ function addCalories() {
     updateArchive();
 }
 
-/* ✅ ITEM WITH TIME */
+/* ✅ Item with red warning delete */
 function addItemToList(amount, label, time) {
     let li = document.createElement("li");
-    li.dataset.amount = amount;
-    li.dataset.label = label;
-    li.dataset.time = time;
+
+    let deleteTap = 0;
+
+    let row = document.createElement("div");
+    row.className = "item-row";
 
     let text = document.createElement("span");
     text.innerText = `${label}: ${amount} kcal (${time})`;
@@ -254,7 +268,18 @@ function addItemToList(amount, label, time) {
     btn.innerText = "X";
     btn.className = "delete";
 
+    let warn = document.createElement("div");
+    warn.style.color = "red";
+    warn.style.fontSize = "14px";
+
     btn.onclick = () => {
+        deleteTap++;
+
+        if (deleteTap < 3) {
+            warn.innerText = `Tap delete ${3 - deleteTap} more time${(3 - deleteTap)>1?"s":""}`;
+            return;
+        }
+
         caloriesUsed -= amount;
         li.remove();
         updateDisplay();
@@ -263,12 +288,20 @@ function addItemToList(amount, label, time) {
         updateArchive();
     };
 
-    li.appendChild(text);
-    li.appendChild(btn);
+    row.appendChild(text);
+    row.appendChild(btn);
+
+    li.dataset.amount = amount;
+    li.dataset.label = label;
+    li.dataset.time = time;
+
+    li.appendChild(row);
+    li.appendChild(warn);
+
     foodList.appendChild(li);
 }
 
-/* ✅ MONTH SUMMARY */
+/* Month summary */
 function updateMonth() {
     let data = JSON.parse(localStorage.getItem("tracker")) || {};
     let month = new Date().getMonth();
@@ -281,13 +314,14 @@ function updateMonth() {
         let name = d.toLocaleDateString("en-GB");
         let total = data[key].total;
 
-        list.push(`<li>${name}: ${total} kcal</li>`);
+        let color = (total <= dailyLimit) ? "darkgreen" : "darkred";
+        list.push(`<li style="color:${color}; font-weight:bold">${name}: ${total} kcal</li>`);
     }
 
     monthBreakdown.innerHTML = list.join("");
 }
 
-/* ✅ ARCHIVE (ALL MONTH ENTRIES) */
+/* Archive */
 function updateArchive() {
     let data = JSON.parse(localStorage.getItem("tracker")) || {};
     let month = new Date().getMonth();
@@ -305,16 +339,12 @@ function updateArchive() {
     archiveList.innerHTML = list.join("");
 }
 
-/* Reset */
+/* ✅ 5 tap reset */
 function resetDay() {
-    if (!resetArmed) {
-        resetMsg.innerText = "Tap reset again to confirm";
-        resetArmed = true;
+    resetTapCount++;
 
-        setTimeout(() => {
-            resetArmed = false;
-            resetMsg.innerText = "";
-        }, 3000);
+    if (resetTapCount < 5) {
+        resetMsg.innerText = `Tap reset ${5 - resetTapCount} more times…`;
         return;
     }
 
@@ -327,7 +357,7 @@ function resetDay() {
     caloriesUsed = 0;
     foodList.innerHTML = "";
 
-    resetArmed = false;
+    resetTapCount = 0;
     resetMsg.innerText = "";
 
     updateDisplay();
@@ -335,10 +365,17 @@ function resetDay() {
     updateArchive();
 }
 
-/* UI */
+/* Display */
 function updateDisplay() {
-    remaining.innerText = dailyLimit - caloriesUsed;
+    let remainingValue = dailyLimit - caloriesUsed;
+    remaining.innerText = remainingValue;
     dailyLimitDisplay.innerText = dailyLimit;
+
+    if (caloriesUsed <= dailyLimit) {
+        remaining.style.color = "darkgreen";
+    } else {
+        remaining.style.color = "darkred";
+    }
 }
 
 /* Events */
