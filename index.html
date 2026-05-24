@@ -26,7 +26,7 @@ body {
     align-items: center;
 }
 
-/* ✅ bigger daily limit */
+/* ✅ Bigger daily limit */
 #dailyLimitDisplay {
     font-size: 22px;
     font-weight: bold;
@@ -102,7 +102,7 @@ li {
     <h2>Remaining</h2>
     <h1 id="remaining">0</h1>
 
-    <!-- ❌ WEEKLY TOTAL REMOVED -->
+    <!-- ✅ Weekly removed -->
 
     <div class="legend">
         <strong>Meal Guide:</strong><br>
@@ -116,15 +116,16 @@ li {
 
     <button id="addBtn" type="button">Add Calories</button>
 
+    <!-- ✅ LABEL UPDATED -->
     <h3>Today's Food Log</h3>
     <ul id="foodList"></ul>
 
     <!-- ✅ MONTH SUMMARY -->
-    <h3>This Month</h3>
+    <h3>This Month's Summary</h3>
     <ul id="monthBreakdown"></ul>
 
     <!-- ✅ ARCHIVE -->
-    <h3>Archive (All Entries)</h3>
+    <h3>This Month's Detailed</h3>
     <ul id="archiveList"></ul>
 
 </div>
@@ -145,21 +146,24 @@ function getMonthKey() {
     return d.getFullYear() + "-" + d.getMonth();
 }
 
-/* ✅ AUTO RESET */
+/* ✅ AUTO RESETS */
 function checkReset() {
     let today = getTodayKey();
     let lastDay = localStorage.getItem("lastDay");
 
+    // ✅ DAILY RESET (clear visible list ONLY, keep data)
     if (lastDay !== today) {
         caloriesUsed = 0;
+        foodList.innerHTML = "";
         localStorage.setItem("lastDay", today);
     }
 
     let currentMonth = getMonthKey();
     let lastMonth = localStorage.getItem("lastMonth");
 
+    // ✅ MONTH RESET (full wipe)
     if (lastMonth !== currentMonth) {
-        localStorage.removeItem("tracker"); // full reset
+        localStorage.removeItem("tracker");
         localStorage.setItem("lastMonth", currentMonth);
     }
 }
@@ -221,7 +225,6 @@ function saveData() {
 /* ✅ ADD */
 function addCalories() {
     let amount = parseInt(calInput.value);
-
     if (!amount || amount <= 0) return;
 
     let label = getMealLabel();
@@ -237,7 +240,7 @@ function addCalories() {
     updateArchive();
 }
 
-/* ✅ ITEM with timestamp */
+/* ✅ ITEM WITH TIME */
 function addItemToList(amount, label, time) {
     let li = document.createElement("li");
     li.dataset.amount = amount;
@@ -262,15 +265,13 @@ function addItemToList(amount, label, time) {
 
     li.appendChild(text);
     li.appendChild(btn);
-
     foodList.appendChild(li);
 }
 
-/* ✅ MONTH VIEW */
+/* ✅ MONTH SUMMARY */
 function updateMonth() {
     let data = JSON.parse(localStorage.getItem("tracker")) || {};
     let month = new Date().getMonth();
-
     let list = [];
 
     for (let key in data) {
@@ -286,12 +287,16 @@ function updateMonth() {
     monthBreakdown.innerHTML = list.join("");
 }
 
-/* ✅ ARCHIVE */
+/* ✅ ARCHIVE (ALL MONTH ENTRIES) */
 function updateArchive() {
     let data = JSON.parse(localStorage.getItem("tracker")) || {};
+    let month = new Date().getMonth();
     let list = [];
 
     for (let day in data) {
+        let d = new Date(day);
+        if (d.getMonth() !== month) continue;
+
         data[day].items.forEach(item => {
             list.push(`<li>${item.time} - ${item.amount} kcal</li>`);
         });
