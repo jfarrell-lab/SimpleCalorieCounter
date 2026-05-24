@@ -2,59 +2,135 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Simple Calorie Counter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calorie Tracker</title>
 
 <style>
 body {
     font-family: Arial;
-    text-align: center;
+    padding: 20px;
+    background: #f5f5f5;
 }
 
-/* Bigger daily limit text */
-#dailyDisplay {
-    font-size: 30px;
-    font-weight: bold;
-    margin-bottom: 15px;
+.container {
+    max-width: 420px;
+    margin: auto;
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
 }
 
-.section {
-    margin-top: 25px;
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+input, button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    font-size: 16px;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+button {
+    background: #0078d4;
+    color: white;
+    border: none;
+}
+
+input {
+    border: 1px solid #ccc;
+}
+
+.reset-btn {
+    background: red;
+    width: auto;
+    padding: 8px 12px;
+}
+
+.delete {
+    background: red;
+    width: auto;
+    margin-left: 10px;
+}
+
+li {
+    background: #eee;
+    padding: 8px;
+    margin-top: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.legend {
+    background: #fafafa;
+    padding: 10px;
+    margin-top: 10px;
+    font-size: 14px;
+    border-radius: 5px;
+}
+
+#resetMsg {
+    color: red;
+    font-size: 12px;
+    height: 16px;
 }
 </style>
 </head>
 
 <body>
 
-<h2>Simple Calorie Counter</h2>
+<div class="container">
 
-<div id="dailyDisplay">0 / 2000</div>
+    <div class="top-bar">
+        <h3 style="font-size:20px;">Daily Limit: <span id="dailyLimitDisplay"></span></h3>
+        <button id="resetBtn" type="button" class="reset-btn">Reset</button>
+    </div>
 
-<input id="calories" type="number" placeholder="Calories">
-<button onclick="addCalories()">Add</button>
-<button onclick="resetDay()">Reset Day</button>
+    <div id="resetMsg"></div>
 
-<!-- MONTHLY SUMMARY -->
-<div class="section">
-    <h3>Monthly Summary (Daily Totals)</h3>
-    <div id="monthSummary"></div>
-</div>
+    <h2>Remaining</h2>
+    <h1 id="remaining">0</h1>
 
-<!-- MONTHLY DETAILED LOG -->
-<div class="section">
+    <!-- WEEKLY REMOVED -->
+
+    <div class="legend">
+        <strong>Meal Guide:</strong><br>
+        Breakfast: 05:00 – 11:59<br>
+        Dinner: 12:00 – 15:00<br>
+        Tea: 15:01 – 19:00<br>
+        Snack: All other times
+    </div>
+
+    <input type="number" id="calInput" placeholder="Enter calories" min="1">
+
+    <button id="addBtn" type="button">Add Calories</button>
+
+    <h3>Food Log</h3>
+    <ul id="foodList"></ul>
+
+    <!-- ✅ MONTHLY SUMMARY -->
+    <h3>Monthly Summary</h3>
+    <ul id="monthSummary"></ul>
+
+    <!-- ✅ MONTHLY DETAILED LOG -->
     <h3>Monthly Detailed Log</h3>
-    <div id="monthLog"></div>
+    <ul id="monthLog"></ul>
+
 </div>
 
 <script>
-const DAILY_LIMIT = 2000;
 
-let currentCalories = parseInt(localStorage.getItem("currentCalories")) || 0;
-let entries = JSON.parse(localStorage.getItem("entries")) || [];
-let dailyTotals = JSON.parse(localStorage.getItem("dailyTotals")) || {};
+let dailyLimit = 1350;
+let caloriesUsed = 0;
+let resetArmed = false;
 
-/* ---------- DATE CHECKS ---------- */
-function getToday() {
-    return new Date().toISOString().split("T")[0];
+function getTodayKey() {
+    return new Date().toDateString();
 }
 
 function getMonthKey() {
@@ -62,99 +138,198 @@ function getMonthKey() {
     return d.getFullYear() + "-" + d.getMonth();
 }
 
-/* ---------- RESETS ---------- */
-function checkResets() {
-    let today = getToday();
-    let storedDay = localStorage.getItem("lastDay");
+/* ✅ RESET CHECK */
+function checkAutoReset() {
+    let today = getTodayKey();
+    let lastDay = localStorage.getItem("lastDay");
 
-    // DAILY RESET (midnight)
-    if (storedDay !== today) {
-        currentCalories = 0;
+    if (lastDay !== today) {
+        caloriesUsed = 0;
         localStorage.setItem("lastDay", today);
     }
 
     let thisMonth = getMonthKey();
-    let storedMonth = localStorage.getItem("lastMonth");
+    let lastMonth = localStorage.getItem("lastMonth");
 
-    // MONTHLY RESET (1st of month)
-    if (storedMonth !== thisMonth) {
-        entries = [];
-        dailyTotals = {};
-        currentCalories = 0;
+    if (lastMonth !== thisMonth) {
+        localStorage.removeItem("tracker");
         localStorage.setItem("lastMonth", thisMonth);
     }
 }
 
-/* ---------- ADD ---------- */
-function addCalories() {
-    let calInput = document.getElementById("calories");
-    let calories = parseInt(calInput.value);
-
-    if (!calories) return;
-
+/* Meal */
+function getMealLabel() {
     let now = new Date();
-    let today = getToday();
+    let mins = now.getHours() * 60 + now.getMinutes();
 
-    // ✅ store entry WITH timestamp
-    let entry = {
-        calories: calories,
-        time: now.toLocaleString()
+    if (mins >= 300 && mins <= 719) return "Breakfast";
+    if (mins >= 720 && mins <= 900) return "Dinner";
+    if (mins >= 901 && mins <= 1140) return "Tea";
+    return "Snack";
+}
+
+/* Load */
+function loadData() {
+    let data = JSON.parse(localStorage.getItem("tracker")) || {};
+    let today = getTodayKey();
+
+    caloriesUsed = 0;
+    foodList.innerHTML = "";
+
+    if (data[today]) {
+        caloriesUsed = data[today].total;
+
+        data[today].items.forEach(item => {
+            addItemToList(item.amount, item.label, item.time);
+        });
+    }
+
+    updateDisplay();
+    updateMonthly();
+}
+
+/* Save */
+function saveData() {
+    let data = JSON.parse(localStorage.getItem("tracker")) || {};
+    let today = getTodayKey();
+
+    let items = [];
+    document.querySelectorAll("#foodList li").forEach(li => {
+        items.push({
+            amount: parseInt(li.dataset.amount),
+            label: li.dataset.label,
+            time: li.dataset.time
+        });
+    });
+
+    data[today] = {
+        total: caloriesUsed,
+        items: items
     };
 
-    entries.push(entry);
+    localStorage.setItem("tracker", JSON.stringify(data));
+}
 
-    // update daily totals
-    if (!dailyTotals[today]) dailyTotals[today] = 0;
-    dailyTotals[today] += calories;
+/* ✅ ADD */
+function addCalories() {
+    let amount = parseInt(calInput.value);
 
-    currentCalories += calories;
+    if (!amount || amount <= 0) {
+        alert("Enter a positive number");
+        return;
+    }
 
-    save();
-    render();
+    let label = getMealLabel();
+    let time = new Date().toLocaleString();
+
+    caloriesUsed += amount;
+    addItemToList(amount, label, time);
 
     calInput.value = "";
+    updateDisplay();
+    updateMonthly();
+    saveData();
 }
 
-/* ---------- RESET TODAY ---------- */
-function resetDay() {
-    let today = getToday();
-    currentCalories = 0;
-    dailyTotals[today] = 0;
-    save();
-    render();
+/* ✅ ITEM WITH TIME */
+function addItemToList(amount, label, time) {
+    let li = document.createElement("li");
+    li.dataset.amount = amount;
+    li.dataset.label = label;
+    li.dataset.time = time;
+
+    let text = document.createElement("span");
+    text.innerText = `${time} - ${label}: ${amount} kcal`;
+
+    let btn = document.createElement("button");
+    btn.innerText = "X";
+    btn.className = "delete";
+
+    btn.onclick = () => {
+        caloriesUsed -= amount;
+        li.remove();
+        updateDisplay();
+        updateMonthly();
+        saveData();
+    };
+
+    li.appendChild(text);
+    li.appendChild(btn);
+
+    foodList.appendChild(li);
 }
 
-/* ---------- SAVE ---------- */
-function save() {
-    localStorage.setItem("currentCalories", currentCalories);
-    localStorage.setItem("entries", JSON.stringify(entries));
-    localStorage.setItem("dailyTotals", JSON.stringify(dailyTotals));
-}
+/* ✅ MONTHLY */
+function updateMonthly() {
+    let data = JSON.parse(localStorage.getItem("tracker")) || {};
+    let currentMonth = new Date().getMonth();
 
-/* ---------- RENDER ---------- */
-function render() {
-    // Top (no weekly total)
-    document.getElementById("dailyDisplay").innerText =
-        currentCalories + " / " + DAILY_LIMIT;
+    let summary = {};
+    let log = [];
 
-    /* MONTHLY SUMMARY */
+    for (let day in data) {
+        let d = new Date(day);
+        if (d.getMonth() !== currentMonth) continue;
+
+        summary[day] = data[day].total;
+
+        data[day].items.forEach(item => {
+            log.push(`<li>${item.time} - ${item.amount} kcal</li>`);
+        });
+    }
+
     let summaryHTML = "";
-    Object.keys(dailyTotals).sort().forEach(day => {
-        summaryHTML += `<div>${day} : ${dailyTotals[day]} kcal</div>`;
+    Object.keys(summary).sort().forEach(d => {
+        summaryHTML += `<li>${d}: ${summary[d]} kcal</li>`;
     });
-    document.getElementById("monthSummary").innerHTML = summaryHTML;
 
-    /* MONTHLY LOG */
-    let logHTML = "";
-    entries.forEach(e => {
-        logHTML += `<div>${e.time} - ${e.calories} kcal</div>`;
-    });
-    document.getElementById("monthLog").innerHTML = logHTML;
+    monthSummary.innerHTML = summaryHTML;
+    monthLog.innerHTML = log.join("");
 }
 
-/* ---------- INIT ---------- */
-checkResets();
-render();
+/* RESET */
+function resetDay() {
+    if (!resetArmed) {
+        resetMsg.innerText = "Tap reset again to confirm";
+        resetArmed = true;
+
+        setTimeout(() => {
+            resetArmed = false;
+            resetMsg.innerText = "";
+        }, 3000);
+        return;
+    }
+
+    let data = JSON.parse(localStorage.getItem("tracker")) || {};
+    let today = getTodayKey();
+
+    delete data[today];
+    localStorage.setItem("tracker", JSON.stringify(data));
+
+    caloriesUsed = 0;
+    foodList.innerHTML = "";
+
+    resetArmed = false;
+    resetMsg.innerText = "";
+
+    updateDisplay();
+    updateMonthly();
+}
+
+/* UI */
+function updateDisplay() {
+    remaining.innerText = dailyLimit - caloriesUsed;
+    dailyLimitDisplay.innerText = dailyLimit;
+}
+
+/* Events */
+addBtn.onclick = addCalories;
+resetBtn.onclick = resetDay;
+
+/* INIT */
+checkAutoReset();
+loadData();
+
 </script>
 
 </body>
