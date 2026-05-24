@@ -26,6 +26,12 @@ body {
     align-items: center;
 }
 
+/* ✅ bigger daily limit */
+#dailyLimitDisplay {
+    font-size: 22px;
+    font-weight: bold;
+}
+
 input, button {
     width: 100%;
     padding: 12px;
@@ -87,7 +93,7 @@ li {
 <div class="container">
 
     <div class="top-bar">
-        <h3 style="font-size:20px;">Daily Limit: <span id="dailyLimitDisplay"></span></h3>
+        <h3>Daily Limit: <span id="dailyLimitDisplay"></span></h3>
         <button id="resetBtn" type="button" class="reset-btn">Reset</button>
     </div>
 
@@ -96,7 +102,7 @@ li {
     <h2>Remaining</h2>
     <h1 id="remaining">0</h1>
 
-    <!-- WEEKLY REMOVED -->
+    <!-- ❌ WEEKLY TOTAL REMOVED -->
 
     <div class="legend">
         <strong>Meal Guide:</strong><br>
@@ -113,13 +119,13 @@ li {
     <h3>Food Log</h3>
     <ul id="foodList"></ul>
 
-    <!-- ✅ MONTHLY SUMMARY -->
-    <h3>Monthly Summary</h3>
-    <ul id="monthSummary"></ul>
+    <!-- ✅ MONTH SUMMARY -->
+    <h3>This Month</h3>
+    <ul id="monthBreakdown"></ul>
 
-    <!-- ✅ MONTHLY DETAILED LOG -->
-    <h3>Monthly Detailed Log</h3>
-    <ul id="monthLog"></ul>
+    <!-- ✅ ARCHIVE -->
+    <h3>Archive (All Entries)</h3>
+    <ul id="archiveList"></ul>
 
 </div>
 
@@ -129,6 +135,7 @@ let dailyLimit = 1350;
 let caloriesUsed = 0;
 let resetArmed = false;
 
+/* Date helpers */
 function getTodayKey() {
     return new Date().toDateString();
 }
@@ -138,8 +145,8 @@ function getMonthKey() {
     return d.getFullYear() + "-" + d.getMonth();
 }
 
-/* ✅ RESET CHECK */
-function checkAutoReset() {
+/* ✅ AUTO RESET */
+function checkReset() {
     let today = getTodayKey();
     let lastDay = localStorage.getItem("lastDay");
 
@@ -148,16 +155,16 @@ function checkAutoReset() {
         localStorage.setItem("lastDay", today);
     }
 
-    let thisMonth = getMonthKey();
+    let currentMonth = getMonthKey();
     let lastMonth = localStorage.getItem("lastMonth");
 
-    if (lastMonth !== thisMonth) {
-        localStorage.removeItem("tracker");
-        localStorage.setItem("lastMonth", thisMonth);
+    if (lastMonth !== currentMonth) {
+        localStorage.removeItem("tracker"); // full reset
+        localStorage.setItem("lastMonth", currentMonth);
     }
 }
 
-/* Meal */
+/* Meal label */
 function getMealLabel() {
     let now = new Date();
     let mins = now.getHours() * 60 + now.getMinutes();
@@ -185,7 +192,8 @@ function loadData() {
     }
 
     updateDisplay();
-    updateMonthly();
+    updateMonth();
+    updateArchive();
 }
 
 /* Save */
@@ -214,10 +222,7 @@ function saveData() {
 function addCalories() {
     let amount = parseInt(calInput.value);
 
-    if (!amount || amount <= 0) {
-        alert("Enter a positive number");
-        return;
-    }
+    if (!amount || amount <= 0) return;
 
     let label = getMealLabel();
     let time = new Date().toLocaleString();
@@ -227,11 +232,12 @@ function addCalories() {
 
     calInput.value = "";
     updateDisplay();
-    updateMonthly();
     saveData();
+    updateMonth();
+    updateArchive();
 }
 
-/* ✅ ITEM WITH TIME */
+/* ✅ ITEM with timestamp */
 function addItemToList(amount, label, time) {
     let li = document.createElement("li");
     li.dataset.amount = amount;
@@ -239,7 +245,7 @@ function addItemToList(amount, label, time) {
     li.dataset.time = time;
 
     let text = document.createElement("span");
-    text.innerText = `${time} - ${label}: ${amount} kcal`;
+    text.innerText = `${label}: ${amount} kcal (${time})`;
 
     let btn = document.createElement("button");
     btn.innerText = "X";
@@ -249,8 +255,9 @@ function addItemToList(amount, label, time) {
         caloriesUsed -= amount;
         li.remove();
         updateDisplay();
-        updateMonthly();
         saveData();
+        updateMonth();
+        updateArchive();
     };
 
     li.appendChild(text);
@@ -259,35 +266,41 @@ function addItemToList(amount, label, time) {
     foodList.appendChild(li);
 }
 
-/* ✅ MONTHLY */
-function updateMonthly() {
+/* ✅ MONTH VIEW */
+function updateMonth() {
     let data = JSON.parse(localStorage.getItem("tracker")) || {};
-    let currentMonth = new Date().getMonth();
+    let month = new Date().getMonth();
 
-    let summary = {};
-    let log = [];
+    let list = [];
+
+    for (let key in data) {
+        let d = new Date(key);
+        if (d.getMonth() !== month) continue;
+
+        let name = d.toLocaleDateString("en-GB");
+        let total = data[key].total;
+
+        list.push(`<li>${name}: ${total} kcal</li>`);
+    }
+
+    monthBreakdown.innerHTML = list.join("");
+}
+
+/* ✅ ARCHIVE */
+function updateArchive() {
+    let data = JSON.parse(localStorage.getItem("tracker")) || {};
+    let list = [];
 
     for (let day in data) {
-        let d = new Date(day);
-        if (d.getMonth() !== currentMonth) continue;
-
-        summary[day] = data[day].total;
-
         data[day].items.forEach(item => {
-            log.push(`<li>${item.time} - ${item.amount} kcal</li>`);
+            list.push(`<li>${item.time} - ${item.amount} kcal</li>`);
         });
     }
 
-    let summaryHTML = "";
-    Object.keys(summary).sort().forEach(d => {
-        summaryHTML += `<li>${d}: ${summary[d]} kcal</li>`;
-    });
-
-    monthSummary.innerHTML = summaryHTML;
-    monthLog.innerHTML = log.join("");
+    archiveList.innerHTML = list.join("");
 }
 
-/* RESET */
+/* Reset */
 function resetDay() {
     if (!resetArmed) {
         resetMsg.innerText = "Tap reset again to confirm";
@@ -313,7 +326,8 @@ function resetDay() {
     resetMsg.innerText = "";
 
     updateDisplay();
-    updateMonthly();
+    updateMonth();
+    updateArchive();
 }
 
 /* UI */
@@ -326,8 +340,8 @@ function updateDisplay() {
 addBtn.onclick = addCalories;
 resetBtn.onclick = resetDay;
 
-/* INIT */
-checkAutoReset();
+/* Init */
+checkReset();
 loadData();
 
 </script>
