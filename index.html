@@ -2,174 +2,158 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Calorie Counter</title>
+<title>Simple Calorie Counter</title>
 
 <style>
 body {
     font-family: Arial;
-    padding: 20px;
-    background: #f4f4f4;
-}
-
-h1 {
     text-align: center;
 }
 
-/* BIG daily display */
+/* Bigger daily limit text */
 #dailyDisplay {
-    font-size: 36px;
+    font-size: 30px;
     font-weight: bold;
-    color: #2c3e50;
+    margin-bottom: 15px;
 }
 
-/* sections */
 .section {
-    margin-top: 30px;
-    background: white;
-    padding: 15px;
-    border: 1px solid #ccc;
+    margin-top: 25px;
 }
 </style>
 </head>
 
 <body>
 
-<h1>Calorie Counter</h1>
+<h2>Simple Calorie Counter</h2>
 
 <div id="dailyDisplay">0 / 2000</div>
 
-<br>
-
-<input id="food" placeholder="Food">
 <input id="calories" type="number" placeholder="Calories">
-<button onclick="addItem()">Add</button>
-
-<button onclick="resetDay()">Reset Today</button>
+<button onclick="addCalories()">Add</button>
+<button onclick="resetDay()">Reset Day</button>
 
 <!-- MONTHLY SUMMARY -->
 <div class="section">
-    <h2>Monthly Summary (Daily Totals)</h2>
-    <div id="monthlySummary"></div>
+    <h3>Monthly Summary (Daily Totals)</h3>
+    <div id="monthSummary"></div>
 </div>
 
-<!-- MONTHLY DETAILED -->
+<!-- MONTHLY DETAILED LOG -->
 <div class="section">
-    <h2>Monthly Detailed Log (All Entries)</h2>
-    <div id="monthlyLog"></div>
+    <h3>Monthly Detailed Log</h3>
+    <div id="monthLog"></div>
 </div>
 
 <script>
 const DAILY_LIMIT = 2000;
 
-let data = JSON.parse(localStorage.getItem("calData")) || {
-    entries: [],
-    dailyTotals: {},
-    lastDay: "",
-    lastMonth: ""
-};
+let currentCalories = parseInt(localStorage.getItem("currentCalories")) || 0;
+let entries = JSON.parse(localStorage.getItem("entries")) || [];
+let dailyTotals = JSON.parse(localStorage.getItem("dailyTotals")) || {};
 
-/* ---------- DATE HELPERS ---------- */
-function todayStr() {
+/* ---------- DATE CHECKS ---------- */
+function getToday() {
     return new Date().toISOString().split("T")[0];
 }
 
-function monthStr() {
-    const d = new Date();
+function getMonthKey() {
+    let d = new Date();
     return d.getFullYear() + "-" + d.getMonth();
 }
 
-/* ---------- RESET LOGIC ---------- */
-function checkReset() {
-    let today = todayStr();
-    let month = monthStr();
+/* ---------- RESETS ---------- */
+function checkResets() {
+    let today = getToday();
+    let storedDay = localStorage.getItem("lastDay");
 
-    // DAILY RESET
-    if (data.lastDay !== today) {
-        data.lastDay = today;
+    // DAILY RESET (midnight)
+    if (storedDay !== today) {
+        currentCalories = 0;
+        localStorage.setItem("lastDay", today);
     }
 
-    // MONTH RESET
-    if (data.lastMonth !== month) {
-        data.entries = [];
-        data.dailyTotals = {};
-        data.lastMonth = month;
+    let thisMonth = getMonthKey();
+    let storedMonth = localStorage.getItem("lastMonth");
+
+    // MONTHLY RESET (1st of month)
+    if (storedMonth !== thisMonth) {
+        entries = [];
+        dailyTotals = {};
+        currentCalories = 0;
+        localStorage.setItem("lastMonth", thisMonth);
     }
-
-    save();
 }
 
-/* ---------- SAVE ---------- */
-function save() {
-    localStorage.setItem("calData", JSON.stringify(data));
-}
+/* ---------- ADD ---------- */
+function addCalories() {
+    let calInput = document.getElementById("calories");
+    let calories = parseInt(calInput.value);
 
-/* ---------- ADD ITEM ---------- */
-function addItem() {
-    let name = document.getElementById("food").value;
-    let cal = parseInt(document.getElementById("calories").value);
-
-    if (!name || !cal) return;
+    if (!calories) return;
 
     let now = new Date();
+    let today = getToday();
 
-    let date = now.toISOString().split("T")[0];
-
+    // ✅ store entry WITH timestamp
     let entry = {
-        name,
-        calories: cal,
-        date,
-        time: now.toLocaleString() // ✅ FULL DATE + TIME
+        calories: calories,
+        time: now.toLocaleString()
     };
 
-    data.entries.push(entry);
+    entries.push(entry);
 
-    // update daily total
-    if (!data.dailyTotals[date]) data.dailyTotals[date] = 0;
-    data.dailyTotals[date] += cal;
+    // update daily totals
+    if (!dailyTotals[today]) dailyTotals[today] = 0;
+    dailyTotals[today] += calories;
+
+    currentCalories += calories;
 
     save();
     render();
 
-    document.getElementById("food").value = "";
-    document.getElementById("calories").value = "";
+    calInput.value = "";
 }
 
 /* ---------- RESET TODAY ---------- */
 function resetDay() {
-    let today = todayStr();
-    data.dailyTotals[today] = 0;
+    let today = getToday();
+    currentCalories = 0;
+    dailyTotals[today] = 0;
     save();
     render();
 }
 
+/* ---------- SAVE ---------- */
+function save() {
+    localStorage.setItem("currentCalories", currentCalories);
+    localStorage.setItem("entries", JSON.stringify(entries));
+    localStorage.setItem("dailyTotals", JSON.stringify(dailyTotals));
+}
+
 /* ---------- RENDER ---------- */
 function render() {
-    let today = todayStr();
-    let todayTotal = data.dailyTotals[today] || 0;
-
-    // top display (NO weekly anything)
+    // Top (no weekly total)
     document.getElementById("dailyDisplay").innerText =
-        `${todayTotal} / ${DAILY_LIMIT}`;
+        currentCalories + " / " + DAILY_LIMIT;
 
     /* MONTHLY SUMMARY */
     let summaryHTML = "";
-    Object.keys(data.dailyTotals)
-        .sort()
-        .forEach(day => {
-            summaryHTML += `<div>${day} : ${data.dailyTotals[day]} kcal</div>`;
-        });
-    document.getElementById("monthlySummary").innerHTML = summaryHTML;
+    Object.keys(dailyTotals).sort().forEach(day => {
+        summaryHTML += `<div>${day} : ${dailyTotals[day]} kcal</div>`;
+    });
+    document.getElementById("monthSummary").innerHTML = summaryHTML;
 
     /* MONTHLY LOG */
     let logHTML = "";
-    data.entries.forEach(e => {
-        logHTML += `<div>${e.time} - ${e.name} (${e.calories} kcal)</div>`;
+    entries.forEach(e => {
+        logHTML += `<div>${e.time} - ${e.calories} kcal</div>`;
     });
-    document.getElementById("monthlyLog").innerHTML = logHTML;
+    document.getElementById("monthLog").innerHTML = logHTML;
 }
 
 /* ---------- INIT ---------- */
-checkReset();
+checkResets();
 render();
 </script>
 
