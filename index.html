@@ -23,11 +23,7 @@ body {
     min-height: 85vh;
 }
 
-ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
+ul { list-style: none; padding: 0; margin: 0; }
 
 .main-title {
     font-size: 32px;
@@ -41,19 +37,10 @@ ul {
     align-items: center;
 }
 
-#remaining {
-    font-size: 46px;
-    text-align: center;
-}
+#remaining { font-size: 46px; text-align: center; }
 
-h2 {
-    text-align: center;
-    font-size: 24px;
-}
-
-h3 {
-    font-size: 20px;
-}
+h2 { text-align: center; font-size: 24px; }
+h3 { font-size: 20px; }
 
 input, button {
     width: 100%;
@@ -64,29 +51,20 @@ input, button {
     box-sizing: border-box;
 }
 
-button {
-    background: #0078d4;
-    color: white;
-    border: none;
-}
+button { background: #0078d4; color: white; border: none; }
 
-.reset-btn {
-    background: red;
-    width: auto;
-}
+.reset-btn { background: red; width: auto; }
 
 .delete {
     color: red;
     font-weight: bold;
     background: none;
     border: none;
-    padding: 0;
     margin-left: 10px;
     font-size: 18px;
     cursor: pointer;
 }
 
-/* Base list size */
 li {
     background: #eee;
     padding: 6px 10px;
@@ -94,13 +72,8 @@ li {
     font-size: 20px;
 }
 
-.item-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
+.item-row { display: flex; justify-content: space-between; align-items: center; }
 
-/* Base calories */
 .calories {
     min-width: 100px;
     text-align: right;
@@ -109,37 +82,25 @@ li {
     font-size: 20px;
 }
 
-/* ✅ Larger today's log only */
-#foodList li {
-    font-size: 23px;
-}
+/* Today's log */
+#foodList li { font-size: 23px; }
+#foodList .calories { font-size: 23px; }
 
-#foodList .calories {
-    font-size: 23px;
-}
+.warn { color: red; font-size: 18px; display: none; }
 
-.warn {
-    color: red;
-    font-size: 18px;
-    display: none;
-}
-
-/* ✅ Message above input */
 .message {
     color: red;
     font-weight: bold;
     margin-top: 10px;
     margin-bottom: 5px;
     min-height: 40px;
-    line-height: 1.2;
 }
 
-#archiveList {
-    margin-bottom: 10px;
-}
+/* spacing fix */
+#archiveList { margin-bottom: 15px; }
 
 .restore-bar {
-    margin-top: auto;
+    margin-top: 10px;
     background: #0078d4;
     color: white;
     text-align: center;
@@ -147,6 +108,10 @@ li {
     cursor: pointer;
     font-size: 18px;
 }
+
+/* help */
+details { margin-top: 10px; font-size: 16px; }
+summary { font-weight: bold; cursor: pointer; }
 </style>
 </head>
 
@@ -180,6 +145,22 @@ li {
 
 <div id="restoreBar" class="restore-bar">Restore Backup</div>
 
+<!-- ✅ UPDATED DESCRIPTION -->
+<details>
+<summary>What this tracker does</summary>
+<ul>
+<li>Tracks daily calorie intake</li>
+<li>Shows remaining calories vs daily limit</li>
+<li>Daily log resets automatically each day</li>
+<li>Requires double-tap for large entries (&gt;750)</li>
+<li>Prevents accidental deletes and resets (multi-tap)</li>
+<li>Saves data locally (offline)</li>
+<li>Creates automatic daily backup</li>
+<li>Restores backup on demand</li>
+<li>Automatically clears all data each new month</li>
+</ul>
+</details>
+
 </div>
 
 <script>
@@ -189,14 +170,49 @@ let caloriesUsed = 0;
 let resetTapCount = 0;
 let restoreTapCount = 0;
 let restoreActive = false;
-
 let confirmLargeEntry = false;
+
+/* daily backup */
+function runDailyBackup() {
+    let today = new Date().toDateString();
+    let last = localStorage.getItem("tracker_backup_date");
+
+    if (last !== today) {
+        let data = localStorage.getItem("tracker");
+        if (data) {
+            localStorage.setItem("tracker_backup", data);
+            localStorage.setItem("tracker_backup_date", today);
+        }
+    }
+}
+
+/* monthly reset */
+function runMonthlyReset() {
+    let now = new Date();
+    let currentMonth = now.getMonth();
+    let lastMonth = localStorage.getItem("tracker_month");
+
+    if (lastMonth === null) {
+        localStorage.setItem("tracker_month", currentMonth);
+        return;
+    }
+
+    if (parseInt(lastMonth) !== currentMonth) {
+        localStorage.removeItem("tracker");
+        localStorage.removeItem("tracker_backup");
+        localStorage.setItem("tracker_month", currentMonth);
+    }
+}
 
 function getTodayKey() {
     return new Date().toDateString();
 }
 
 function loadData() {
+
+    runMonthlyReset();
+    runDailyBackup();
+
     let data = JSON.parse(localStorage.getItem("tracker")) || {};
     let today = getTodayKey();
 
@@ -227,13 +243,14 @@ function saveData() {
         });
     });
 
-    data[today] = { total: caloriesUsed, items: items };
+    data[today] = { total: caloriesUsed, items };
     localStorage.setItem("tracker", JSON.stringify(data));
+
+    runDailyBackup();
 }
 
 function addCalories() {
     let amount = parseInt(calInput.value);
-
     if (!amount || amount <= 0) return;
 
     if (amount > 750 && !confirmLargeEntry) {
@@ -246,8 +263,8 @@ function addCalories() {
     resetMsg.innerHTML = "";
 
     let time = new Date().toLocaleString();
-
     caloriesUsed += amount;
+
     addItemToList(amount, time);
 
     calInput.value = "";
@@ -293,7 +310,6 @@ function addItemToList(amount, time) {
 
     btn.onclick = () => {
         deleteTap++;
-
         if (deleteTap < 3) {
             warn.style.display = "block";
             warn.innerText = `Tap delete ${3 - deleteTap} more`;
@@ -347,12 +363,8 @@ function updateArchive() {
         let date = new Date(day).toLocaleDateString("en-GB");
 
         data[day].items.forEach(item => {
-            let t = item.time.includes(", ")
-                ? item.time.split(", ")[1]
-                : item.time;
-
+            let t = item.time.includes(", ") ? item.time.split(", ")[1] : item.time;
             t = t.slice(0,5);
-
             list.push(`<li><strong>${date}: ${t}</strong><br>${item.amount} kcal</li>`);
         });
     }
@@ -362,7 +374,6 @@ function updateArchive() {
 
 function resetDay() {
     resetTapCount++;
-
     if (resetTapCount < 5) {
         resetMsg.innerHTML = `Tap reset ${5 - resetTapCount} more`;
         return;
@@ -412,10 +423,8 @@ function restoreBackup() {
 
 function updateDisplay() {
     let remainingValue = dailyLimit - caloriesUsed;
-
     remaining.innerText = remainingValue;
     dailyLimitDisplay.innerText = dailyLimit;
-
     remaining.style.color = caloriesUsed <= dailyLimit ? "darkgreen" : "darkred";
 }
 
