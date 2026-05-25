@@ -9,6 +9,7 @@ body {
     font-family: Arial;
     padding: 20px;
     background: #f5f5f5;
+    font-size: 18px;
 }
 
 .container {
@@ -22,7 +23,6 @@ body {
     min-height: 85vh;
 }
 
-/* ✅ remove bullets */
 ul {
     list-style: none;
     padding: 0;
@@ -30,7 +30,7 @@ ul {
 }
 
 .main-title {
-    font-size: 30px;
+    font-size: 32px;
     font-weight: bold;
     text-align: center;
 }
@@ -42,15 +42,24 @@ ul {
 }
 
 #remaining {
-    font-size: 44px;
+    font-size: 46px;
     text-align: center;
+}
+
+h2 {
+    text-align: center;
+    font-size: 24px;
+}
+
+h3 {
+    font-size: 20px;
 }
 
 input, button {
     width: 100%;
     padding: 14px;
     margin-top: 10px;
-    font-size: 18px;
+    font-size: 20px;
     border-radius: 5px;
     box-sizing: border-box;
 }
@@ -77,46 +86,54 @@ button {
     cursor: pointer;
 }
 
-/* ✅ compact rows */
 li {
     background: #eee;
-    padding: 5px 10px;
+    padding: 6px 10px;
     margin-top: 6px;
+    font-size: 20px;
 }
 
-/* ✅ layout */
 .item-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
-/* ✅ fixed width calories */
 .calories {
-    min-width: 80px;
+    min-width: 100px;
     text-align: right;
     white-space: nowrap;
     margin-right: 6px;
+    font-size: 20px;
+}
+
+/* ✅ Today's log emphasis */
+#foodList li {
+    font-size: 23px;
+}
+
+#foodList .calories {
+    font-size: 23px;
 }
 
 .warn {
     color: red;
-    font-size: 14px;
+    font-size: 18px;
     display: none;
 }
 
-/* ✅ spacing above restore button */
 #archiveList {
     margin-bottom: 10px;
 }
 
 .restore-bar {
-    margin-top: auto;  /* keeps it at bottom */
+    margin-top: auto;
     background: #0078d4;
     color: white;
     text-align: center;
     padding: 14px;
     cursor: pointer;
+    font-size: 18px;
 }
 </style>
 </head>
@@ -134,10 +151,11 @@ li {
 
 <div id="resetMsg" style="color:red; height:16px;"></div>
 
-<h2 style="text-align:center;">Remaining</h2>
+<h2>Remaining</h2>
 <h1 id="remaining">0</h1>
 
-<input type="number" id="calInput">
+<!-- ✅ Only allow positive numbers -->
+<input type="number" id="calInput" min="1" step="1">
 <button id="addBtn">Add Calories</button>
 
 <h3>Today's Food Log</h3>
@@ -154,7 +172,6 @@ li {
 </div>
 
 <script>
-
 let dailyLimit = 1350;
 let caloriesUsed = 0;
 
@@ -203,7 +220,9 @@ function saveData() {
 
 function addCalories() {
     let amount = parseInt(calInput.value);
-    if (!amount) return;
+
+    // ✅ Block zero & negative numbers
+    if (!amount || amount <= 0) return;
 
     let time = new Date().toLocaleString();
 
@@ -379,7 +398,6 @@ resetBtn.onclick = resetDay;
 restoreBar.onclick = restoreBackup;
 
 loadData();
-
 </script>
 
 </body>
