@@ -86,6 +86,7 @@ button {
     cursor: pointer;
 }
 
+/* Base list size */
 li {
     background: #eee;
     padding: 6px 10px;
@@ -99,6 +100,7 @@ li {
     align-items: center;
 }
 
+/* Base calories */
 .calories {
     min-width: 100px;
     text-align: right;
@@ -107,7 +109,7 @@ li {
     font-size: 20px;
 }
 
-/* ✅ Today's log emphasis */
+/* ✅ Larger today's log only */
 #foodList li {
     font-size: 23px;
 }
@@ -120,6 +122,16 @@ li {
     color: red;
     font-size: 18px;
     display: none;
+}
+
+/* ✅ Message above input */
+.message {
+    color: red;
+    font-weight: bold;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    min-height: 40px;
+    line-height: 1.2;
 }
 
 #archiveList {
@@ -149,12 +161,11 @@ li {
     <button id="resetBtn" class="reset-btn">Reset</button>
 </div>
 
-<div id="resetMsg" style="color:red; height:16px;"></div>
-
 <h2>Remaining</h2>
 <h1 id="remaining">0</h1>
 
-<!-- ✅ Only allow positive numbers -->
+<div id="resetMsg" class="message"></div>
+
 <input type="number" id="calInput" min="1" step="1">
 <button id="addBtn">Add Calories</button>
 
@@ -178,6 +189,8 @@ let caloriesUsed = 0;
 let resetTapCount = 0;
 let restoreTapCount = 0;
 let restoreActive = false;
+
+let confirmLargeEntry = false;
 
 function getTodayKey() {
     return new Date().toDateString();
@@ -221,8 +234,16 @@ function saveData() {
 function addCalories() {
     let amount = parseInt(calInput.value);
 
-    // ✅ Block zero & negative numbers
     if (!amount || amount <= 0) return;
+
+    if (amount > 750 && !confirmLargeEntry) {
+        resetMsg.innerHTML = "<strong>HIGH CALORIES ENTERED</strong><br>Tap Add again to confirm";
+        confirmLargeEntry = true;
+        return;
+    }
+
+    confirmLargeEntry = false;
+    resetMsg.innerHTML = "";
 
     let time = new Date().toLocaleString();
 
@@ -235,6 +256,11 @@ function addCalories() {
     updateMonth();
     updateArchive();
 }
+
+calInput.oninput = () => {
+    confirmLargeEntry = false;
+    resetMsg.innerHTML = "";
+};
 
 function addItemToList(amount, time) {
 
@@ -338,7 +364,7 @@ function resetDay() {
     resetTapCount++;
 
     if (resetTapCount < 5) {
-        resetMsg.innerText = `Tap reset ${5 - resetTapCount} more`;
+        resetMsg.innerHTML = `Tap reset ${5 - resetTapCount} more`;
         return;
     }
 
@@ -350,7 +376,7 @@ function resetDay() {
     foodList.innerHTML = "";
 
     resetTapCount = 0;
-    resetMsg.innerText = "";
+    resetMsg.innerHTML = "";
 
     updateDisplay();
     updateMonth();
