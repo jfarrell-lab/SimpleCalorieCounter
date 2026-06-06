@@ -96,7 +96,6 @@ li {
     min-height: 40px;
 }
 
-/* spacing fix */
 #archiveList { margin-bottom: 15px; }
 
 .restore-bar {
@@ -131,8 +130,11 @@ summary { font-weight: bold; cursor: pointer; }
 
 <div id="resetMsg" class="message"></div>
 
-<input type="number" id="calInput" min="1" step="1">
-<button id="addBtn">Add Calories</button>
+<!-- CHANGED -->
+<input type="number" id="calInput" min="1" step="1" placeholder="Enter calories here">
+
+<!-- CHANGED -->
+<button id="addBtn" style="display:none;">Click here to submit calories</button>
 
 <h3>Today's Food Log</h3>
 <ul id="foodList"></ul>
@@ -145,7 +147,73 @@ summary { font-weight: bold; cursor: pointer; }
 
 <div id="restoreBar" class="restore-bar">Restore Backup</div>
 
-<!-- ✅ UPDATED DESCRIPTION -->
+<!-- NEW DROPDOWN HELP SECTION -->
+<details style="margin-top:20px; font-size:18px;">
+<summary style="font-size:20px; font-weight:bold;">
+Common Foods & Calories (Tap to open)
+</summary>
+
+<div style="margin-top:10px; line-height:1.6; font-size:18px;">
+
+<strong>Calories are approximate per 100g unless stated otherwise.</strong>
+
+<br><br>
+
+<strong>Food & Calories (Alphabetical)</strong>
+<br>
+Apple – 52<br>
+Baked beans – 78<br>
+Baked potato – 93<br>
+Banana – 89<br>
+Blueberries – 57<br>
+Bran Flakes – 367<br>
+Broccoli – 34<br>
+Brown rice (cooked) – 112<br>
+Carrots – 41<br>
+Cauliflower – 25<br>
+Chickpeas – 164<br>
+Chips (chip shop) – 250<br>
+Corn Flakes – 367<br>
+Cucumber – 15<br>
+Grapes – 69<br>
+Kidney beans – 127<br>
+Kiwi – 61<br>
+Lentils (cooked) – 116<br>
+Mango – 60<br>
+Mushrooms – 22<br>
+Orange – 47<br>
+Pear – 57<br>
+Peas – 81<br>
+Pineapple – 50<br>
+Porridge oats (dry) – 375<br>
+Raspberries – 52<br>
+Shredded Wheat – 378<br>
+Satsuma – 47<br>
+Strawberries – 32<br>
+Sweet potato – 90<br>
+Sweetcorn – 96<br>
+Tomatoes – 18<br>
+Watermelon – 30<br>
+Weetabix – 362<br>
+White rice (cooked) – 130<br>
+
+<br>
+
+<strong>Handy Portion Sizes</strong>
+<br>
+Apple (1 medium) = 95 calories<br>
+Banana (1 medium) = 105 calories<br>
+Orange (1 medium) = 62 calories<br>
+Satsuma (1 fruit) = 35 calories<br>
+Weetabix (1 biscuit) = 68 calories<br>
+Weetabix (2 biscuits) = 136 calories<br>
+Shredded Wheat (1 biscuit) = 85 calories<br>
+Shredded Wheat (2 biscuits) = 170 calories<br>
+Baked potato (large, 300g) = 280 calories<br>
+
+</div>
+</details>
+
 <details>
 <summary>What this tracker does</summary>
 <ul>
@@ -172,7 +240,6 @@ let restoreTapCount = 0;
 let restoreActive = false;
 let confirmLargeEntry = false;
 
-/* daily backup */
 function runDailyBackup() {
     let today = new Date().toDateString();
     let last = localStorage.getItem("tracker_backup_date");
@@ -186,7 +253,6 @@ function runDailyBackup() {
     }
 }
 
-/* monthly reset */
 function runMonthlyReset() {
     let now = new Date();
     let currentMonth = now.getMonth();
@@ -272,11 +338,20 @@ function addCalories() {
     saveData();
     updateMonth();
     updateArchive();
+
+    addBtn.style.display = "none";
 }
 
 calInput.oninput = () => {
     confirmLargeEntry = false;
     resetMsg.innerHTML = "";
+
+    if (calInput.value && parseInt(calInput.value) > 0) {
+        addBtn.style.display = "block";
+        addBtn.innerText = "Click here to submit calories";
+    } else {
+        addBtn.style.display = "none";
+    }
 };
 
 function addItemToList(amount, time) {
@@ -427,6 +502,8 @@ function updateDisplay() {
     dailyLimitDisplay.innerText = dailyLimit;
     remaining.style.color = caloriesUsed <= dailyLimit ? "darkgreen" : "darkred";
 }
+
+addBtn.style.display = "none";
 
 addBtn.onclick = addCalories;
 resetBtn.onclick = resetDay;
